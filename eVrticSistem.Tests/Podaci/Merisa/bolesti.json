@@ -1,0 +1,14 @@
+[
+  {
+    "Id": 1,
+    "Exists": true
+  },
+  {
+    "Id": 2,
+    "Exists": true
+  },
+  {
+    "Id": 100,
+    "Exists": false
+  }
+]

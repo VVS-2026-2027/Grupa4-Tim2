@@ -1,13 +1,13 @@
-﻿using EVrtic.Data;
-using EVrtic.Models;
+﻿using System.Security.Claims;
 using EVrtic.Controllers;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
+using EVrtic.Data;
+using EVrtic.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.EntityFrameworkCore;
+using Moq;
 
 namespace eVrticSistem.Tests.Merisa;
 
@@ -15,8 +15,8 @@ namespace eVrticSistem.Tests.Merisa;
 public class GrupaControllerTests
 {
     private ApplicationDbContext _baza = null!;
+    private Mock<UserManager<Korisnik>> _korisnici = null!;
     private GrupaController _kontroler = null!;
-    private Mock<UserManager<Korisnik>> _userManager = null!;
 
     [TestInitialize]
     public void PripremiKontroler()
@@ -26,358 +26,366 @@ public class GrupaControllerTests
             .Options;
 
         _baza = new ApplicationDbContext(opcije);
+        _korisnici = new Mock<UserManager<Korisnik>>(
+            Mock.Of<IUserStore<Korisnik>>(),
+            null!, null!, null!, null!, null!, null!, null!, null!);
 
-        var store = new Mock<IUserStore<Korisnik>>();
-
-        _userManager = new Mock<UserManager<Korisnik>>(
-            store.Object,
-            null!,
-            null!,
-            null!,
-            null!,
-            null!,
-            null!,
-            null!,
-            null!);
-
-        _kontroler = new GrupaController(_baza, _userManager.Object);
+        _kontroler = new GrupaController(_baza, _korisnici.Object)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext()
+            }
+        };
         _kontroler.TempData = new TempDataDictionary(
-            new DefaultHttpContext(),
-            Mock.Of<ITempDataProvider>()
-        );
+            _kontroler.HttpContext, Mock.Of<ITempDataProvider>());
     }
 
     [TestCleanup]
-    public void OslobodiKontekst()
+    public void OcistiBazu()
     {
+        _korisnici?.Object.Dispose();
         _baza.Dispose();
     }
 
-    // INDEX
-
     [TestMethod]
-    public async Task IndexVracaSveGrupe()
+    public async Task IndexVracaSortiraneGrupe()
     {
-        var grupa1 = new Grupa { ImeGrupe = "Leptirici" };
-        var grupa2 = new Grupa { ImeGrupe = "Zabice" };
-
-        _baza.Grupe.AddRange(grupa1, grupa2);
-        await _baza.SaveChangesAsync();
+        await DodajGrupu("Zvezdice");
+        await DodajGrupu("Cvjetići");
 
         var rezultat = await _kontroler.Index();
 
-        var prikaz = Assert.IsInstanceOfType<ViewResult>(rezultat);
-        var grupe = prikaz.Model as List<Grupa>;
-
-        Assert.IsNotNull(grupe);
-
-        Assert.AreEqual(2, grupe.Count);
-        Assert.AreEqual("Leptirici", grupe[0].ImeGrupe);
-        Assert.AreEqual("Zabice", grupe[1].ImeGrupe);
+        var view = Assert.IsInstanceOfType<ViewResult>(rezultat);
+        var grupe = Assert.IsInstanceOfType<List<Grupa>>(view.Model);
+        Assert.AreEqual("Cvjetići", grupe[0].ImeGrupe);
+        Assert.AreEqual("Zvezdice", grupe[1].ImeGrupe);
     }
 
-
     [TestMethod]
-    public async Task CreateGetVracaViewSaModelom()
+    public async Task CreateGetPopunjavaOdgajateljeIDostupnuDjecu()
     {
+        await DodajOdgajatelja("Amina Čengić", "amina@example.test");
+        await DodajDijete("Amin", null);
+        await DodajDijete(string.Empty, null, "D0000002");
+
         var rezultat = await _kontroler.Create();
 
-        var prikaz = Assert.IsInstanceOfType<ViewResult>(rezultat);
-
-        Assert.IsInstanceOfType<GrupaFormViewModel>(prikaz.Model);
+        var view = Assert.IsInstanceOfType<ViewResult>(rezultat);
+        var vm = Assert.IsInstanceOfType<GrupaFormViewModel>(view.Model);
+        Assert.AreEqual(1, vm.Odgajatelji.Count);
+        Assert.AreEqual("Amina Čengić", vm.Odgajatelji[0].Text);
+        Assert.AreEqual(2, vm.DostupnaDjeca.Count);
+        Assert.IsTrue(vm.DostupnaDjeca.Any(d => d.ImePrezime == "(kod: D0000002)"));
     }
 
-    // CREATE - POST
+    [TestMethod]
+    public async Task CreateGetKoristiEmailKadOdgajateljNemaIme()
+    {
+        await DodajOdgajatelja(string.Empty, "odgajatelj@example.test");
+
+        var rezultat = await _kontroler.Create();
+
+        var view = Assert.IsInstanceOfType<ViewResult>(rezultat);
+        var vm = Assert.IsInstanceOfType<GrupaFormViewModel>(view.Model);
+        Assert.AreEqual("odgajatelj@example.test", vm.Odgajatelji[0].Text);
+    }
 
     [TestMethod]
-    public async Task CreatePostUspjesnoKreiraGrupuIDodjeljujeDjeci()
+    [DataRow(true, false, false, false)]
+    [DataRow(false, true, false, false)]
+    [DataRow(false, false, true, false)]
+    [DataRow(false, false, false, true)]
+    public async Task CreatePostNeispravanModelVracaFormu(
+        bool praznoIme, bool duplikat, bool nemaOdgajatelja, bool nedovoljnoDjece)
     {
-        var dijete1 = new Dijete { ImePrezime = "Amina Kovac" };
-        var dijete2 = new Dijete { ImePrezime = "Emina Kovac" };
-
-        _baza.Djeca.AddRange(dijete1, dijete2);
-        await _baza.SaveChangesAsync();
+        await DodajOdgajatelja("Amina Čengić");
+        await DodajGrupu("Leptirići");
 
         var vm = new GrupaFormViewModel
         {
-            ImeGrupe = " Leptirici ",
-            OdgajateljId = 1,
-            OdabranaDjecaIds = new List<int>
-            {
-                dijete1.Id,
-                dijete2.Id
-            }
+            ImeGrupe = praznoIme ? " " : duplikat ? " leptirići " : "Novi naziv",
+            OdgajateljId = nemaOdgajatelja ? null : 1,
+            OdabranaDjecaIds = nedovoljnoDjece ? new List<int> { 1 } : new List<int> { 1, 2 }
         };
 
         var rezultat = await _kontroler.Create(vm);
 
-        var preusmjerenje =
-            Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
+        Assert.IsInstanceOfType<ViewResult>(rezultat);
+        Assert.IsFalse(_kontroler.ModelState.IsValid);
+    }
 
+    [TestMethod]
+    public async Task CreatePostUspesnoKreiraGrupuIPovezujeDjecu()
+    {
+        var odgajatelj = await DodajOdgajatelja("Amina Čengić");
+        var dijete1 = await DodajDijete("Prvo Dijete", null);
+        var dijete2 = await DodajDijete("Drugo Dijete", null);
+
+        var vm = new GrupaFormViewModel
+        {
+            ImeGrupe = "  Suncokreti  ",
+            OdgajateljId = odgajatelj.Id,
+            OdabranaDjecaIds = new List<int> { dijete1.Id, dijete2.Id }
+        };
+
+        var rezultat = await _kontroler.Create(vm);
+
+        var preusmjerenje = Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
         Assert.AreEqual(nameof(GrupaController.Index), preusmjerenje.ActionName);
 
-        var grupa = await _baza.Grupe.FirstOrDefaultAsync();
-
-        Assert.IsNotNull(grupa);
-        Assert.AreEqual("Leptirici", grupa.ImeGrupe);
-
-        var sacuvanaDjeca = await _baza.Djeca
-            .Where(d => d.GrupaId == grupa.Id)
-            .ToListAsync();
-
-        Assert.AreEqual(2, sacuvanaDjeca.Count);
+        var grupa = await _baza.Grupe.SingleAsync();
+        Assert.AreEqual("Suncokreti", grupa.ImeGrupe);
+        Assert.AreEqual(odgajatelj.Id, grupa.OdgajateljId);
+        Assert.AreEqual(grupa.Id, (await _baza.Djeca.FindAsync(dijete1.Id))!.GrupaId);
+        Assert.AreEqual(grupa.Id, (await _baza.Djeca.FindAsync(dijete2.Id))!.GrupaId);
+        Assert.IsTrue(_kontroler.TempData.ContainsKey("Uspjeh"));
     }
 
     [TestMethod]
-    public async Task CreatePostBezImenaGrupeVracaView()
+    public async Task CreatePostSaNulListomDjecaPostavljaPraznuListu()
     {
+        var odgajatelj = await DodajOdgajatelja("Amina Čengić");
         var vm = new GrupaFormViewModel
         {
-            ImeGrupe = "",
-            OdgajateljId = 1,
-            OdabranaDjecaIds = new List<int> { 1, 2 }
+            ImeGrupe = "Nova grupa",
+            OdgajateljId = odgajatelj.Id,
+            OdabranaDjecaIds = null!
         };
 
         var rezultat = await _kontroler.Create(vm);
 
         Assert.IsInstanceOfType<ViewResult>(rezultat);
-        Assert.IsTrue(_kontroler.ModelState.ContainsKey(nameof(vm.ImeGrupe)));
-        Assert.AreEqual(0, await _baza.Grupe.CountAsync());
+        Assert.IsTrue(_kontroler.ModelState[nameof(vm.OdabranaDjecaIds)]!.Errors.Count > 0);
     }
 
     [TestMethod]
-    public async Task CreatePostBezOdgajateljaVracaView()
+    public async Task EditGetVracaNotFoundZaNullId()
     {
-        var vm = new GrupaFormViewModel
-        {
-            ImeGrupe = "Leptirici",
-            OdgajateljId = null,
-            OdabranaDjecaIds = new List<int> { 1, 2 }
-        };
-
-        var rezultat = await _kontroler.Create(vm);
-
-        Assert.IsInstanceOfType<ViewResult>(rezultat);
-        Assert.IsTrue(_kontroler.ModelState.ContainsKey(nameof(vm.OdgajateljId)));
-        Assert.AreEqual(0, await _baza.Grupe.CountAsync());
-    }
-
-    [TestMethod]
-    public async Task CreatePostSaManjeOdDvojeDjeceVracaView()
-    {
-        var vm = new GrupaFormViewModel
-        {
-            ImeGrupe = "Leptirici",
-            OdgajateljId = 1,
-            OdabranaDjecaIds = new List<int> { 1 }
-        };
-
-        var rezultat = await _kontroler.Create(vm);
-
-        Assert.IsInstanceOfType<ViewResult>(rezultat);
-        Assert.IsTrue(_kontroler.ModelState.ContainsKey(nameof(vm.OdabranaDjecaIds)));
-        Assert.AreEqual(0, await _baza.Grupe.CountAsync());
-    }
-
-    [TestMethod]
-    public async Task CreatePostSaPostojecimImenomGrupeVracaView()
-    {
-        _baza.Grupe.Add(new Grupa { ImeGrupe = "Leptirici" });
-        await _baza.SaveChangesAsync();
-
-        var vm = new GrupaFormViewModel
-        {
-            ImeGrupe = " LEPTIRICI ",
-            OdgajateljId = 1,
-            OdabranaDjecaIds = new List<int> { 1, 2 }
-        };
-
-        var rezultat = await _kontroler.Create(vm);
-
-        Assert.IsInstanceOfType<ViewResult>(rezultat);
-        Assert.IsTrue(_kontroler.ModelState.ContainsKey(nameof(vm.ImeGrupe)));
-        Assert.AreEqual(1, await _baza.Grupe.CountAsync());
-    }
-
-    [TestMethod]
-    public async Task EditGetZaNullIdVracaNotFound()
-    {
-        var rezultat = await _kontroler.Edit(null);
-
+        var rezultat = await _kontroler.Edit((int?)null);
         Assert.IsInstanceOfType<NotFoundResult>(rezultat);
     }
 
     [TestMethod]
-    public async Task EditGetZaNepostojeciIdVracaNotFound()
+    public async Task EditGetVracaNotFoundZaNepostojecuGrupu()
     {
-        var rezultat = await _kontroler.Edit(42);
-
+        var rezultat = await _kontroler.Edit(999);
         Assert.IsInstanceOfType<NotFoundResult>(rezultat);
     }
 
     [TestMethod]
-    public async Task EditGetZaPostojecuGrupuVracaViewModel()
+    public async Task EditGetVracaModelSaTrenutnomDjecom()
     {
-        var grupa = new Grupa { ImeGrupe = "Leptirici" };
-
-        _baza.Grupe.Add(grupa);
-        await _baza.SaveChangesAsync();
+        var grupa = await DodajGrupu("Leptirići");
+        var dijete = await DodajDijete("Amina", null, grupaId: grupa.Id);
 
         var rezultat = await _kontroler.Edit(grupa.Id);
 
-        var prikaz = Assert.IsInstanceOfType<ViewResult>(rezultat);
-        var vm = Assert.IsInstanceOfType<GrupaFormViewModel>(prikaz.Model);
-
+        var view = Assert.IsInstanceOfType<ViewResult>(rezultat);
+        var vm = Assert.IsInstanceOfType<GrupaFormViewModel>(view.Model);
         Assert.AreEqual(grupa.Id, vm.Id);
-        Assert.AreEqual("Leptirici", vm.ImeGrupe);
+        Assert.AreEqual(grupa.ImeGrupe, vm.ImeGrupe);
+        Assert.AreEqual(dijete.Id, vm.OdabranaDjecaIds[0]);
+        Assert.IsTrue(vm.DostupnaDjeca.Any(d => d.Id == dijete.Id));
     }
 
     [TestMethod]
-    public async Task EditPostZaRazliciteIdVrijednostiVracaNotFound()
+    public async Task EditPostSaRazlicitimIdEvimaVracaNotFound()
     {
-        var vm = new GrupaFormViewModel
-        {
-            Id = 10,
-            ImeGrupe = "Leptirici",
-            OdgajateljId = 1
-        };
-
-        var rezultat = await _kontroler.Edit(20, vm);
-
+        var rezultat = await _kontroler.Edit(1, new GrupaFormViewModel { Id = 2 });
         Assert.IsInstanceOfType<NotFoundResult>(rezultat);
     }
 
     [TestMethod]
-    public async Task EditPostUspjesnoMijenjaImeGrupe()
+    public async Task EditPostNeispravanModelVracaFormu()
     {
-        var grupa = new Grupa { ImeGrupe = "Leptirici" };
-
-        _baza.Grupe.Add(grupa);
-        await _baza.SaveChangesAsync();
-
+        var grupa = await DodajGrupu("Leptirići");
         var vm = new GrupaFormViewModel
         {
             Id = grupa.Id,
-            ImeGrupe = " Zekani ",
-            OdgajateljId = 1
-        };
-
-        var rezultat = await _kontroler.Edit(grupa.Id, vm);
-
-        var preusmjerenje =
-            Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
-
-        Assert.AreEqual(nameof(GrupaController.Index), preusmjerenje.ActionName);
-
-        var izmijenjenaGrupa = await _baza.Grupe.FindAsync(grupa.Id);
-
-        Assert.IsNotNull(izmijenjenaGrupa);
-        Assert.AreEqual("Zekani", izmijenjenaGrupa.ImeGrupe);
-    }
-
-    [TestMethod]
-    public async Task EditPostZaNepostojecuGrupuVracaNotFound()
-    {
-        var vm = new GrupaFormViewModel
-        {
-            Id = 42,
-            ImeGrupe = "Leptirici",
-            OdgajateljId = 1
-        };
-
-        var rezultat = await _kontroler.Edit(42, vm);
-
-        Assert.IsInstanceOfType<NotFoundResult>(rezultat);
-    }
-
-    [TestMethod]
-    public async Task EditPostBezImenaGrupeVracaView()
-    {
-        var grupa = new Grupa { ImeGrupe = "Leptirici" };
-
-        _baza.Grupe.Add(grupa);
-        await _baza.SaveChangesAsync();
-
-        var vm = new GrupaFormViewModel
-        {
-            Id = grupa.Id,
-            ImeGrupe = "",
-            OdgajateljId = 1
+            ImeGrupe = " ",
+            OdgajateljId = null,
+            OdabranaDjecaIds = null!
         };
 
         var rezultat = await _kontroler.Edit(grupa.Id, vm);
 
         Assert.IsInstanceOfType<ViewResult>(rezultat);
-        Assert.IsTrue(_kontroler.ModelState.ContainsKey(nameof(vm.ImeGrupe)));
+        Assert.IsFalse(_kontroler.ModelState.IsValid);
     }
 
     [TestMethod]
-    public async Task EditPostBezOdgajateljaVracaView()
+    public async Task EditPostSaDuplikatomImenaVracaGresku()
     {
-        var grupa = new Grupa { ImeGrupe = "Leptirici" };
+        await DodajGrupu("Prva grupa");
+        var druga = await DodajGrupu("Druga grupa");
 
-        _baza.Grupe.Add(grupa);
-        await _baza.SaveChangesAsync();
-
-        var vm = new GrupaFormViewModel
+        var rezultat = await _kontroler.Edit(druga.Id, new GrupaFormViewModel
         {
-            Id = grupa.Id,
-            ImeGrupe = "Leptirici",
-            OdgajateljId = null
-        };
-
-        var rezultat = await _kontroler.Edit(grupa.Id, vm);
+            Id = druga.Id,
+            ImeGrupe = " prva GRUPA ",
+            OdgajateljId = 1,
+            OdabranaDjecaIds = new List<int>()
+        });
 
         Assert.IsInstanceOfType<ViewResult>(rezultat);
-        Assert.IsTrue(_kontroler.ModelState.ContainsKey(nameof(vm.OdgajateljId)));
+        Assert.IsTrue(_kontroler.ModelState[nameof(GrupaFormViewModel.ImeGrupe)]!.Errors.Count > 0);
     }
 
     [TestMethod]
-    public async Task DeleteGetVracaForbid()
+    public async Task EditPostVracaNotFoundKadGrupaNijePronadjena()
     {
-        var rezultat = await _kontroler.Delete(42);
+        var rezultat = await _kontroler.Edit(999, new GrupaFormViewModel
+        {
+            Id = 999,
+            ImeGrupe = "Nova grupa",
+            OdgajateljId = 1,
+            OdabranaDjecaIds = new List<int>()
+        });
 
+        Assert.IsInstanceOfType<NotFoundResult>(rezultat);
+    }
+
+    [TestMethod]
+    public async Task EditPostUklanjaINoveDodajeDjecu()
+    {
+        var grupa = await DodajGrupu("Leptirići", 1);
+        var ukloniti = await DodajDijete("Ukloniti", null, grupaId: grupa.Id);
+        var dodati = await DodajDijete("Dodati", null);
+
+        var rezultat = await _kontroler.Edit(grupa.Id, new GrupaFormViewModel
+        {
+            Id = grupa.Id,
+            ImeGrupe = "  Zvezdice  ",
+            OdgajateljId = 2,
+            OdabranaDjecaIds = new List<int> { dodati.Id }
+        });
+
+        Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
+        Assert.IsNull((await _baza.Djeca.FindAsync(ukloniti.Id))!.GrupaId);
+        Assert.AreEqual(grupa.Id, (await _baza.Djeca.FindAsync(dodati.Id))!.GrupaId);
+        Assert.AreEqual("Zvezdice", (await _baza.Grupe.FindAsync(grupa.Id))!.ImeGrupe);
+    }
+
+    [TestMethod]
+    public async Task DeleteVracaForbid()
+    {
+        var rezultat = await _kontroler.Delete(1);
         Assert.IsInstanceOfType<ForbidResult>(rezultat);
     }
 
     [TestMethod]
-    public async Task DeleteConfirmedBriseGrupuIOslobadjaDjecu()
+    public async Task DeleteConfirmedPostojecaGrupaOslobadjaDjecuIBriseGrupu()
     {
-        var grupa = new Grupa { ImeGrupe = "Leptirici" };
-
-        var dijete1 = new Dijete { ImePrezime = "Amina Kovac" };
-        var dijete2 = new Dijete { ImePrezime = "Emina Kovac" };
-
-        grupa.Djeca.Add(dijete1);
-        grupa.Djeca.Add(dijete2);
-
-        _baza.Grupe.Add(grupa);
-        await _baza.SaveChangesAsync();
+        var grupa = await DodajGrupu("Leptirići");
+        var dijete = await DodajDijete("Amina", null, grupaId: grupa.Id);
 
         var rezultat = await _kontroler.DeleteConfirmed(grupa.Id);
 
-        var preusmjerenje =
-            Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
-
-        Assert.AreEqual(nameof(GrupaController.Index), preusmjerenje.ActionName);
-
-        Assert.IsFalse(await _baza.Grupe.AnyAsync(g => g.Id == grupa.Id));
-
-        var sacuvanaDjeca = await _baza.Djeca.ToListAsync();
-
-        Assert.AreEqual(2, sacuvanaDjeca.Count);
-        Assert.IsTrue(sacuvanaDjeca.All(d => d.GrupaId == null));
+        Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
+        Assert.IsNull(await _baza.Grupe.FindAsync(grupa.Id));
+        Assert.IsNull((await _baza.Djeca.FindAsync(dijete.Id))!.GrupaId);
     }
 
     [TestMethod]
-    public async Task DeleteConfirmedZaNepostojeciIdPreusmjeravaNaIndex()
+    public async Task DeleteConfirmedNepostojecaGrupaPreusmjeravaNaIndex()
     {
         var rezultat = await _kontroler.DeleteConfirmed(999);
 
-        var preusmjerenje =
-            Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
-
+        var preusmjerenje = Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
         Assert.AreEqual(nameof(GrupaController.Index), preusmjerenje.ActionName);
-        Assert.AreEqual(0, await _baza.Grupe.CountAsync());
+    }
+
+    [TestMethod]
+    public async Task MojaGrupaBezPrijavljenogKorisnikaPreusmjeravaNaLogin()
+    {
+        NemaPrijavljenogKorisnika();
+
+        var rezultat = await _kontroler.MojaGrupa();
+
+        var redirect = Assert.IsInstanceOfType<RedirectToPageResult>(rezultat);
+        Assert.AreEqual("/Account/Login", redirect.PageName);
+    }
+
+    [TestMethod]
+    public async Task MojaGrupaBezOdgajateljaPreusmjeravaNaHome()
+    {
+        PrijaviKorisnika(999);
+
+        var rezultat = await _kontroler.MojaGrupa();
+
+        var redirect = Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
+        Assert.AreEqual("OdgajateljHome", redirect.ActionName);
+        Assert.AreEqual("Home", redirect.ControllerName);
+    }
+
+    [TestMethod]
+    public async Task MojaGrupaVracaGrupeIOdgajatelja()
+    {
+        var odgajatelj = await DodajOdgajatelja("Amina Čengić");
+        var grupa = await DodajGrupu("Zvezdice", odgajatelj.Id);
+        var dijete = await DodajDijete("Amin", null, grupaId: grupa.Id);
+        _baza.AlergijeDjece.Add(new AlergijaDjeteta { Naziv = "Polen", DijeteId = dijete.Id });
+        _baza.BolestiDjece.Add(new BolestDjeteta { Naziv = "Astma", DijeteId = dijete.Id });
+        await _baza.SaveChangesAsync();
+        PrijaviKorisnika(odgajatelj.Id);
+
+        var rezultat = await _kontroler.MojaGrupa();
+
+        var view = Assert.IsInstanceOfType<ViewResult>(rezultat);
+        var grupe = Assert.IsInstanceOfType<List<Grupa>>(view.Model);
+        Assert.AreEqual(1, grupe.Count);
+        Assert.AreEqual("Zvezdice", grupe[0].ImeGrupe);
+        Assert.AreSame(odgajatelj, _kontroler.ViewBag.Odgajatelj);
+        Assert.AreEqual(1, grupe[0].Djeca.Single().Alergije.Count);
+        Assert.AreEqual(1, grupe[0].Djeca.Single().Bolesti.Count);
+    }
+
+    private async Task<Grupa> DodajGrupu(string ime, int? odgajateljId = null)
+    {
+        var grupa = new Grupa { ImeGrupe = ime, OdgajateljId = odgajateljId };
+        _baza.Grupe.Add(grupa);
+        await _baza.SaveChangesAsync();
+        return grupa;
+    }
+
+    private async Task<Odgajatelj> DodajOdgajatelja(string ime, string? email = null)
+    {
+        var odgajatelj = new Odgajatelj
+        {
+            ImePrezime = ime,
+            Email = email,
+            UserName = email
+        };
+        _baza.Odgajatelji.Add(odgajatelj);
+        await _baza.SaveChangesAsync();
+        return odgajatelj;
+    }
+
+    private async Task<Dijete> DodajDijete(string ime, int? roditeljId, string kod = "ABCD1234", int? grupaId = null)
+    {
+        var dijete = new Dijete
+        {
+            ImePrezime = ime,
+            IdentifikacioniKod = kod,
+            DatumRodjenja = DateTime.Today.AddYears(-4),
+            RoditeljId = roditeljId,
+            GrupaId = grupaId
+        };
+        _baza.Djeca.Add(dijete);
+        await _baza.SaveChangesAsync();
+        return dijete;
+    }
+
+    private void PrijaviKorisnika(int id)
+    {
+        _korisnici.Setup(m => m.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
+            .ReturnsAsync(new Korisnik { Id = id });
+    }
+
+    private void NemaPrijavljenogKorisnika()
+    {
+        _korisnici.Setup(m => m.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
+            .ReturnsAsync((Korisnik?)null);
     }
 }

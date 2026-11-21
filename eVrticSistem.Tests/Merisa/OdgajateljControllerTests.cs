@@ -2,10 +2,14 @@
 using EVrtic.Data;
 using EVrtic.Models;
 using EVrtic.Controllers;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 
@@ -42,11 +46,11 @@ public class OdgajateljControllerTests
     // INDEX
 
     [TestMethod]
-    public async Task IndexVracaForbid()
+    public async Task IndexVracaForbidSaStatusom403()
     {
         var rezultat = await _kontroler.Index();
 
-        Assert.IsInstanceOfType<ForbidResult>(rezultat);
+        await AssertForbidStatus403(rezultat);
     }
 
     // DEAKTIVIRAJ
@@ -128,21 +132,21 @@ public class OdgajateljControllerTests
     // DETAILS
 
     [TestMethod]
-    public async Task DetailsVracaForbid()
+    public async Task DetailsVracaForbidSaStatusom403()
     {
         var rezultat = await _kontroler.Details(1);
 
-        Assert.IsInstanceOfType<ForbidResult>(rezultat);
+        await AssertForbidStatus403(rezultat);
     }
 
     // CREATE
 
     [TestMethod]
-    public void CreateGetVracaForbid()
+    public async Task CreateGetVracaForbidSaStatusom403()
     {
         var rezultat = _kontroler.Create();
 
-        Assert.IsInstanceOfType<ForbidResult>(rezultat);
+        await AssertForbidStatus403(rezultat);
     }
 
     [TestMethod]
@@ -157,17 +161,17 @@ public class OdgajateljControllerTests
 
         var rezultat = await _kontroler.Create(odgajatelj);
 
-        Assert.IsInstanceOfType<ForbidResult>(rezultat);
+        await AssertForbidStatus403(rezultat);
     }
 
     // EDIT
 
     [TestMethod]
-    public async Task EditGetVracaForbid()
+    public async Task EditGetVracaForbidSaStatusom403()
     {
         var rezultat = await _kontroler.Edit(1);
 
-        Assert.IsInstanceOfType<ForbidResult>(rezultat);
+        await AssertForbidStatus403(rezultat);
     }
 
     [TestMethod]
@@ -183,17 +187,75 @@ public class OdgajateljControllerTests
 
         var rezultat = await _kontroler.Edit(1, odgajatelj);
 
-        Assert.IsInstanceOfType<ForbidResult>(rezultat);
+        await AssertForbidStatus403(rezultat);
     }
+
+
+    [TestMethod]
+    public async Task OdgajateljExistsVracaTrueAkoOdgajateljPostoji()
+    {
+        // Arrange
+        var odgajatelj = new Odgajatelj
+        {
+            ImePrezime = "Test Odgajatelj",
+            Email = "test@example.com",
+            StatusNaloga = StatusNaloga.AKTIVAN
+        };
+
+        _baza.Odgajatelji.Add(odgajatelj);
+        await _baza.SaveChangesAsync();
+
+        // Act
+        var metoda = typeof(OdgajateljController).GetMethod(
+            "OdgajateljExists",
+            System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Instance
+        );
+
+        Assert.IsNotNull(metoda);
+
+        var rezultat = metoda.Invoke(
+            _kontroler,
+            new object[] { odgajatelj.Id }
+        );
+
+        // Assert
+        Assert.AreEqual(true, rezultat);
+    }
+
+    [TestMethod]
+    public void OdgajateljExistsVracaFalseAkoOdgajateljNePostoji()
+    {
+        // Arrange
+        var nepostojeciId = 999;
+
+        // Act
+        var metoda = typeof(OdgajateljController).GetMethod(
+            "OdgajateljExists",
+            System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Instance
+        );
+
+        Assert.IsNotNull(metoda);
+
+        var rezultat = metoda.Invoke(
+            _kontroler,
+            new object[] { nepostojeciId }
+        );
+
+        // Assert
+        Assert.AreEqual(false, rezultat);
+    }
+
 
     // DELETE
 
     [TestMethod]
-    public async Task DeleteGetVracaForbid()
+    public async Task DeleteGetVracaForbidSaStatusom403()
     {
         var rezultat = await _kontroler.Delete(1);
 
-        Assert.IsInstanceOfType<ForbidResult>(rezultat);
+        await AssertForbidStatus403(rezultat);
     }
 
     [TestMethod]
@@ -230,5 +292,35 @@ public class OdgajateljControllerTests
             Assert.IsInstanceOfType<RedirectToActionResult>(rezultat);
 
         Assert.AreEqual("Index", preusmjeravanje.ActionName);
+    }
+
+    private static async Task AssertForbidStatus403(IActionResult rezultat)
+    {
+        var forbid = Assert.IsInstanceOfType<ForbidResult>(rezultat);
+        var autentifikacija = new Mock<IAuthenticationService>();
+        autentifikacija
+            .Setup(a => a.ForbidAsync(
+                It.IsAny<HttpContext>(),
+                It.IsAny<string?>(),
+                It.IsAny<AuthenticationProperties?>()))
+            .Callback<HttpContext, string?, AuthenticationProperties?>(
+                (httpContext, _, _) => httpContext.Response.StatusCode = StatusCodes.Status403Forbidden)
+            .Returns(Task.CompletedTask);
+
+        using var servisi = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton(autentifikacija.Object)
+            .BuildServiceProvider();
+        var httpContext = new DefaultHttpContext { RequestServices = servisi };
+        var actionContext = new ActionContext(
+            httpContext, new RouteData(), new ActionDescriptor());
+
+        await forbid.ExecuteResultAsync(actionContext);
+
+        Assert.AreEqual(StatusCodes.Status403Forbidden, httpContext.Response.StatusCode);
+        autentifikacija.Verify(a => a.ForbidAsync(
+            httpContext,
+            It.IsAny<string?>(),
+            It.IsAny<AuthenticationProperties?>()), Times.Once());
     }
 }
