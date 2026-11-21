@@ -1,0 +1,5 @@
+[
+  { "period": "Sedmica", "pocetak": "2026-11-18", "ocekivaniPeriod": "Sedmica", "od": "2026-11-16", "do": "2026-11-20" },
+  { "period": "Mjesec",  "pocetak": "2026-11-18", "ocekivaniPeriod": "Mjesec",  "od": "2026-11-01", "do": "2026-11-30" },
+  { "period": "Neispravno", "pocetak": "2026-11-18", "ocekivaniPeriod": "Sedmica", "od": "2026-11-16", "do": "2026-11-20" }
+]
