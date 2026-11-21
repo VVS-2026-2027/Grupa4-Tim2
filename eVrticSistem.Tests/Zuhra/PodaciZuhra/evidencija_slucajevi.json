@@ -1,0 +1,5 @@
+[
+  { "tip": "DOLAZAK", "postojeciTipovi": ["DOLAZAK"], "ocekivanaPoruka": "evidentiran danas" },
+  { "tip": "ODLAZAK", "postojeciTipovi": [], "ocekivanaPoruka": "nije evidentiran" },
+  { "tip": "ODLAZAK", "postojeciTipovi": ["DOLAZAK", "ODLAZAK"], "ocekivanaPoruka": "evidentiran danas" }
+]

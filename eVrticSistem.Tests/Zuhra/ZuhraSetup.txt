@@ -1,0 +1,12 @@
+=== U eVrticSistem.Tests.csproj ===
+NuGet paketi:  Moq,  Microsoft.EntityFrameworkCore.InMemory (ista verzija kao EF Core u projektu)
+
+<ItemGroup>
+  <None Update="Zuhra\PodaciZuhra\**\*">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
+
+=== Pokrivenost koda ===
+dotnet test --collect:"XPlat Code Coverage"
+(ili u Visual Studiju: Test > Analyze Code Coverage for All Tests)

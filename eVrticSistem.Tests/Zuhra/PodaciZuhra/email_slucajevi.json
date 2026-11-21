@@ -1,0 +1,6 @@
+[
+  { "prima": "grupa:1", "putemEmaila": true,  "emailUspjeh": true,  "ocekivanaPoruka": "Email dostavljen na 1" },
+  { "prima": "grupa:1", "putemEmaila": true,  "emailUspjeh": false, "ocekivanaPoruka": "Email slanje nije uspjelo" },
+  { "prima": "svi",     "putemEmaila": true,  "emailUspjeh": true,  "ocekivanaPoruka": "obavijestiti emailom" },
+  { "prima": "grupa:1", "putemEmaila": false, "emailUspjeh": true,  "ocekivanaPoruka": "uspješno poslana" }
+]

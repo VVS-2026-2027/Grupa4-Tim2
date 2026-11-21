@@ -21,6 +21,12 @@
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
   </ItemGroup>
 
+<ItemGroup>
+  <None Update="Zuhra\PodaciZuhra\**\*">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\eVrticSistem\eVrticSistem.csproj" />
   </ItemGroup>

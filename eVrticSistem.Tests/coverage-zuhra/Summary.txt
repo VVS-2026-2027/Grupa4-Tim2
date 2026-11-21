@@ -1,0 +1,25 @@
+Summary
+  Generated on: 21-Nov-26 - 13:17:12
+  Coverage date: 21-Nov-26 - 13:17:11
+  Parser: Cobertura
+  Assemblies: 1
+  Classes: 3
+  Files: 3
+  Line coverage: 92.6%
+  Covered lines: 564
+  Uncovered lines: 45
+  Coverable lines: 609
+  Total lines: 1139
+  Branch coverage: 87.8% (130 of 148)
+  Covered branches: 130
+  Total branches: 148
+  Method coverage: 100% (40 of 40)
+  Full method coverage: 75% (30 of 40)
+  Covered methods: 40
+  Fully covered methods: 30
+  Total methods: 40
+
+eVrticSistem                                              92.6%
+  EVrtic.Controllers.DnevniQRCodeController                100%
+  EVrtic.Controllers.EvidencijaDolaskaOdlaskaController   91.1%
+  EVrtic.Controllers.ObavijestController                  92.6%
