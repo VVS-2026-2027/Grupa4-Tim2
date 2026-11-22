@@ -30,7 +30,6 @@ public class ObavijestControllerTests
     private Mock<IEmailService> _emailMock = null!;
     private ObavijestController _controller = null!;
 
-    // ===== Životni ciklus =====
 
     [ClassInitialize]
     public static void PripremiKlasu(TestContext testContext)

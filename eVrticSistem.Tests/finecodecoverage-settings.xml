@@ -1,0 +1,17 @@
+
+<FineCodeCoverage>
+  <RunMsCodeCoverage>No</RunMsCodeCoverage>
+  <IncludeTestAssembly>False</IncludeTestAssembly>
+
+  <Include>
+    [eVrticSistem]EVrtic.Controllers.*
+    [eVrticSistem]eVrticSistem.Controllers.*
+    [eVrticSistem]EVrtic.Models.*
+  </Include>
+
+  <Exclude>
+    [eVrticSistem.Tests]*
+    [eVrticSistem]AspNetCoreGeneratedDocument.*
+    [eVrticSistem]Program
+  </Exclude>
+</FineCodeCoverage>
