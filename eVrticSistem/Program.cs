@@ -37,6 +37,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<NajavaOdsustvaService>();
 builder.Services.AddScoped<ZakazanaObavijestService>();
+builder.Services.AddScoped<ObradaZakazanihObavijestiService>();
 
 var app = builder.Build();
 

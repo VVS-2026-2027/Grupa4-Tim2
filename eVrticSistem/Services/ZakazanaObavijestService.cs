@@ -40,12 +40,6 @@ public class ZakazanaObavijestService
                 "Vrijeme zakazanog slanja mora biti u budućnosti.");
         }
 
-        var primalacPostoji = await _baza.Roditelji.AnyAsync(roditelj => roditelj.Id == roditeljId);
-        if (!primalacPostoji)
-        {
-            throw new InvalidOperationException("Roditelj kojem se šalje obavijest ne postoji.");
-        }
-
         var obavijest = new ZakazanaObavijest
         {
             OdgajateljId = odgajateljId,
@@ -62,26 +56,12 @@ public class ZakazanaObavijestService
         return obavijest;
     }
 
-    public async Task<bool> OtkaziAsync(
+    public Task<bool> OtkaziAsync(
         int odgajateljId,
         int najavaId,
         DateTime sadaUtc)
     {
-        var obavijest = await _baza.ZakazaneObavijesti.SingleOrDefaultAsync(o =>
-            o.Id == najavaId && o.OdgajateljId == odgajateljId);
-        if (obavijest == null || obavijest.Status != StatusZakazaneObavijesti.CEKA)
-        {
-            return false;
-        }
-
-        if (KaoUtc(obavijest.VrijemeSlanjaUtc) <= KaoUtc(sadaUtc))
-        {
-            return false;
-        }
-
-        obavijest.Status = StatusZakazaneObavijesti.OTKAZANA;
-        await _baza.SaveChangesAsync();
-        return true;
+        throw new NotImplementedException();
     }
 
     private static DateTime KaoUtc(DateTime vrijednost) => vrijednost.Kind switch

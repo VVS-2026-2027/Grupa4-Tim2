@@ -475,6 +475,55 @@ namespace eVrticSistem.Migrations
                     b.ToTable("SazetakAktivnosti", (string)null);
                 });
 
+            modelBuilder.Entity("EVrtic.Models.ZakazanaObavijest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BrojPokusaja")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DatumSlanjaUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Greska")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Naslov")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("OdgajateljId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoditeljId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Sadrzaj")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("VrijemeSlanjaUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OdgajateljId");
+
+                    b.HasIndex("RoditeljId");
+
+                    b.ToTable("ZakazanaObavijest", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<int>", b =>
                 {
                     b.Property<int>("Id")
@@ -755,6 +804,21 @@ namespace eVrticSistem.Migrations
                         .IsRequired();
 
                     b.Navigation("Dijete");
+                });
+
+            modelBuilder.Entity("EVrtic.Models.ZakazanaObavijest", b =>
+                {
+                    b.HasOne("EVrtic.Models.Odgajatelj", null)
+                        .WithMany()
+                        .HasForeignKey("OdgajateljId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EVrtic.Models.Roditelj", null)
+                        .WithMany()
+                        .HasForeignKey("RoditeljId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
