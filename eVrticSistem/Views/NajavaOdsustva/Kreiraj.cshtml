@@ -1,0 +1,39 @@
+@model EVrtic.Controllers.KreirajNajavuViewModel
+@{
+    ViewData["Title"] = "Najava odsustva";
+}
+
+<h1>Najava odsustva djeteta</h1>
+<p>Izaberite dijete i period odsustva.</p>
+
+<form asp-controller="NajavaOdsustva" asp-action="Kreiraj" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="DijeteId">Dijete</label>
+        <select asp-for="DijeteId" asp-items="Model.Djeca" class="form-select">
+            <option value="0">-- Odaberite dijete --</option>
+        </select>
+        <span asp-validation-for="DijeteId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="DatumOd">Datum početka</label>
+        <input asp-for="DatumOd" type="date" class="form-control" />
+        <span asp-validation-for="DatumOd" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="DatumDo">Datum završetka</label>
+        <input asp-for="DatumDo" type="date" class="form-control" />
+        <span asp-validation-for="DatumDo" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Razlog">Razlog odsustva</label>
+        <textarea asp-for="Razlog" rows="3" class="form-control"></textarea>
+        <span asp-validation-for="Razlog" class="text-danger"></span>
+    </div>
+
+    <button class="btn btn-primary" type="submit">Pošalji najavu</button>
+    <a asp-action="MojeNajave" class="btn btn-secondary">Moje najave</a>
+</form>

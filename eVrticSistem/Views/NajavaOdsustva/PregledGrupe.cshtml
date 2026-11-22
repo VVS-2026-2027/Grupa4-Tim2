@@ -1,0 +1,51 @@
+@model EVrtic.Controllers.PregledNajavaGrupeViewModel
+@{
+    ViewData["Title"] = "Odsustva djece u grupi";
+}
+
+<h1>Najave odsustva za grupu</h1>
+@if (Model.Grupe.Count == 0)
+{
+    <p>Trenutno nemate dodijeljenu grupu.</p>
+}
+else
+{
+    <form asp-action="PregledGrupe" method="get">
+        <div asp-validation-summary="All" class="text-danger"></div>
+        <div class="mb-3">
+            <label asp-for="GrupaId">Grupa</label>
+            <select asp-for="GrupaId" asp-items="Model.Grupe" class="form-select"></select>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Od">Od</label>
+            <input asp-for="Od" type="date" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label asp-for="DoDatuma">Do</label>
+            <input asp-for="DoDatuma" type="date" class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-primary">Prikaži najave</button>
+    </form>
+
+    @if (!Model.Najave.Any())
+    {
+        <p class="mt-3">Nema aktivnih najava u odabranom periodu.</p>
+    }
+    else
+    {
+        <table class="table mt-3">
+            <thead><tr><th>Dijete (ID)</th><th>Od</th><th>Do</th><th>Razlog</th></tr></thead>
+            <tbody>
+            @foreach (var najava in Model.Najave)
+            {
+                <tr>
+                    <td>@najava.DijeteId</td>
+                    <td>@najava.DatumOd.ToString("dd.MM.yyyy")</td>
+                    <td>@najava.DatumDo.ToString("dd.MM.yyyy")</td>
+                    <td>@najava.Razlog</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+}

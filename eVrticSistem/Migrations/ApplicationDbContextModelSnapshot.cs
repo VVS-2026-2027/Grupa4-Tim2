@@ -347,6 +347,45 @@ namespace eVrticSistem.Migrations
                     b.UseTptMappingStrategy();
                 });
 
+            modelBuilder.Entity("EVrtic.Models.NajavaOdsustva", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DatumDo")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DatumKreiranja")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DatumOd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DijeteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Razlog")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RoditeljId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DijeteId");
+
+                    b.HasIndex("RoditeljId");
+
+                    b.ToTable("NajavaOdsustva", (string)null);
+                });
+
             modelBuilder.Entity("EVrtic.Models.Obavijest", b =>
                 {
                     b.Property<int>("Id")
@@ -673,6 +712,21 @@ namespace eVrticSistem.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Odgajatelj");
+                });
+
+            modelBuilder.Entity("EVrtic.Models.NajavaOdsustva", b =>
+                {
+                    b.HasOne("EVrtic.Models.Dijete", null)
+                        .WithMany()
+                        .HasForeignKey("DijeteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EVrtic.Models.Roditelj", null)
+                        .WithMany()
+                        .HasForeignKey("RoditeljId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("EVrtic.Models.Obavijest", b =>

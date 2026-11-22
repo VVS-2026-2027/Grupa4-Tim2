@@ -1,0 +1,49 @@
+@using EVrtic.Models
+@model List<EVrtic.Models.NajavaOdsustva>
+@{
+    ViewData["Title"] = "Moje najave odsustva";
+}
+
+<h1>Moje najave odsustva</h1>
+@if (TempData["Uspjeh"] != null)
+{
+    <div class="alert alert-success">@TempData["Uspjeh"]</div>
+}
+@if (TempData["Greska"] != null)
+{
+    <div class="alert alert-warning">@TempData["Greska"]</div>
+}
+<p><a asp-action="Kreiraj" class="btn btn-primary">Nova najava</a></p>
+
+@if (!Model.Any())
+{
+    <p>Nemate evidentiranih najava.</p>
+}
+else
+{
+    <table class="table">
+        <thead><tr><th>Dijete (ID)</th><th>Od</th><th>Do</th><th>Razlog</th><th>Status</th><th>Akcija</th></tr></thead>
+        <tbody>
+        @foreach (var najava in Model)
+        {
+            <tr>
+                <td>@najava.DijeteId</td>
+                <td>@najava.DatumOd.ToString("dd.MM.yyyy")</td>
+                <td>@najava.DatumDo.ToString("dd.MM.yyyy")</td>
+                <td>@najava.Razlog</td>
+                <td>@najava.Status</td>
+                <td>
+                    @if (najava.Status == StatusNajaveOdsustva.AKTIVNA && najava.DatumOd.Date > DateTime.Today)
+                    {
+                        <form asp-action="Otkazi" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@najava.Id" />
+                            <button type="submit" class="btn btn-danger btn-sm">Otkaži</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
