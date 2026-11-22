@@ -30,6 +30,7 @@ namespace EVrtic.Data
         public DbSet<SazetakAktivnosti> SazeciAktivnosti { get; set; }
         public DbSet<Obavijest> Obavijesti { get; set; }
         public DbSet<NajavaOdsustva> NajaveOdsustva { get; set; }
+        public DbSet<ZakazanaObavijest> ZakazaneObavijesti { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -64,6 +65,19 @@ namespace EVrtic.Data
                 najava.HasOne<Roditelj>()
                     .WithMany()
                     .HasForeignKey(n => n.RoditeljId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ZakazanaObavijest>(obavijest =>
+            {
+                obavijest.ToTable("ZakazanaObavijest");
+                obavijest.HasOne<Roditelj>()
+                    .WithMany()
+                    .HasForeignKey(o => o.RoditeljId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                obavijest.HasOne<Odgajatelj>()
+                    .WithMany()
+                    .HasForeignKey(o => o.OdgajateljId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 

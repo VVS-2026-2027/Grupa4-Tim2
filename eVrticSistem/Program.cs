@@ -36,6 +36,7 @@ builder.Services.AddRazorPages();
 // Email service za slanje notifikacija putem SMTP
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<NajavaOdsustvaService>();
+builder.Services.AddScoped<ZakazanaObavijestService>();
 
 var app = builder.Build();
 
