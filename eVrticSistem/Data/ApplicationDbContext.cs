@@ -29,6 +29,7 @@ namespace EVrtic.Data
 
         public DbSet<SazetakAktivnosti> SazeciAktivnosti { get; set; }
         public DbSet<Obavijest> Obavijesti { get; set; }
+        public DbSet<NajavaOdsustva> NajaveOdsustva { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -52,6 +53,19 @@ namespace EVrtic.Data
 
             modelBuilder.Entity<SazetakAktivnosti>().ToTable("SazetakAktivnosti");
             modelBuilder.Entity<Obavijest>().ToTable("Obavijest");
+
+            modelBuilder.Entity<NajavaOdsustva>(najava =>
+            {
+                najava.ToTable("NajavaOdsustva");
+                najava.HasOne<Dijete>()
+                    .WithMany()
+                    .HasForeignKey(n => n.DijeteId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                najava.HasOne<Roditelj>()
+                    .WithMany()
+                    .HasForeignKey(n => n.RoditeljId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
             // Email unique index — Identity već to osigurava, ali možemo zadržati eksplicitno
             modelBuilder.Entity<Korisnik>()
